@@ -1,0 +1,316 @@
+"use client";
+
+import { createClient } from "@/lib/supabase/client";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import Link from "next/link";
+import type { Profile, Assignment, Interview, Message } from "@/lib/types";
+
+const statusLabels: Record<string, string> = {
+  not_started: "Niet gestart",
+  in_progress: "Bezig",
+  completed: "Afgerond",
+};
+
+const statusColors: Record<string, string> = {
+  not_started: "bg-slate-100 text-slate-700",
+  in_progress: "bg-blue-100 text-blue-700",
+  completed: "bg-green-100 text-green-700",
+};
+
+interface AssignmentWithDetails extends Assignment {
+  interview: Interview;
+  messages: Message[];
+}
+
+export default function ClientDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const clientId = params.id as string;
+
+  const [client, setClient] = useState<Profile | null>(null);
+  const [assignments, setAssignments] = useState<AssignmentWithDetails[]>([]);
+  const [loading, setLoading] = useState(true);
+  const supabase = createClient();
+
+  useEffect(() => {
+    if (clientId) loadClientData();
+  }, [clientId]);
+
+  async function loadClientData() {
+    setLoading(true);
+
+    // Haal klant profiel op
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", clientId)
+      .single();
+
+    if (profileData) setClient(profileData);
+
+    // Haal alle assignments op met interview info
+    const { data: assignmentsData } = await supabase
+      .from("assignments")
+      .select(`
+        *,
+        interview:interviews(*)
+      `)
+      .eq("client_id", clientId)
+      .order("assigned_at", { ascending: false });
+
+    if (assignmentsData) {
+      // Voor elke assignment, haal het aantal berichten op
+      const enriched = await Promise.all(
+        assignmentsData.map(async (a: any) => {
+          const { data: messages } = await supabase
+            .from("messages")
+            .select("*")
+            .eq("assignment_id", a.id)
+            .order("created_at", { ascending: true });
+
+          return { ...a, messages: messages ?? [] };
+        })
+      );
+      setAssignments(enriched);
+    }
+
+    setLoading(false);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <p className="text-muted-foreground">Klant laden...</p>
+      </div>
+    );
+  }
+
+  if (!client) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <p className="text-muted-foreground">Klant niet gevonden.</p>
+        <Button variant="outline" onClick={() => router.push("/admin/clients")}>
+          Terug naar klanten
+        </Button>
+      </div>
+    );
+  }
+
+  const initials =
+    client.full_name
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase() ?? "?";
+
+  const completedCount = assignments.filter((a) => a.status === "completed").length;
+  const inProgressCount = assignments.filter((a) => a.status === "in_progress").length;
+  const notStartedCount = assignments.filter((a) => a.status === "not_started").length;
+
+  return (
+    <div className="space-y-6">
+      {/* Terug-knop */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => router.push("/admin/clients")}
+        className="text-muted-foreground hover:text-slate-900"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="w-4 h-4 mr-1"
+        >
+          <path d="m15 18-6-6 6-6" />
+        </svg>
+        Terug naar klanten
+      </Button>
+
+      {/* Klant header */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-4">
+            <Avatar className="w-14 h-14">
+              <AvatarImage src={client.avatar_url ?? undefined} />
+              <AvatarFallback className="text-lg">{initials}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-slate-900">
+                {client.full_name ?? "Onbekend"}
+              </h1>
+              <p className="text-muted-foreground">{client.email}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Aangemaakt op{" "}
+                {new Date(client.created_at).toLocaleDateString("nl-NL", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </p>
+            </div>
+            <div className="flex gap-6 text-center">
+              <div>
+                <p className="text-2xl font-bold text-slate-900">
+                  {assignments.length}
+                </p>
+                <p className="text-xs text-muted-foreground">Totaal</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-blue-600">
+                  {inProgressCount}
+                </p>
+                <p className="text-xs text-muted-foreground">Bezig</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-green-600">
+                  {completedCount}
+                </p>
+                <p className="text-xs text-muted-foreground">Afgerond</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Klantprofiel link */}
+      <Card className="border-slate-200 hover:shadow-md transition-all cursor-pointer" onClick={() => router.push(`/admin/clients/${clientId}/profile`)}>
+        <CardContent className="py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Klantprofiel</h2>
+              <p className="text-sm text-muted-foreground">
+                ICP, Aanbod, Positionering en Tone of Voice documenten
+              </p>
+            </div>
+            <Button variant="outline" size="sm">
+              Bekijken &rarr;
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Interviews overzicht */}
+      <div>
+        <h2 className="text-xl font-semibold text-slate-900 mb-4">
+          Interviews
+        </h2>
+
+        {assignments.length === 0 ? (
+          <Card>
+            <CardContent className="py-10 text-center">
+              <p className="text-muted-foreground">
+                Nog geen interviews toegewezen aan deze klant.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {assignments.map((assignment) => (
+              <Card key={assignment.id}>
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-1">
+                        <h3 className="font-semibold text-slate-900">
+                          {assignment.interview?.title ?? "Onbekend interview"}
+                        </h3>
+                        <Badge
+                          variant="secondary"
+                          className={statusColors[assignment.status] ?? ""}
+                        >
+                          {statusLabels[assignment.status] ?? assignment.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {assignment.interview?.description}
+                      </p>
+
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span>
+                          Toegewezen op{" "}
+                          {new Date(assignment.assigned_at).toLocaleDateString(
+                            "nl-NL"
+                          )}
+                        </span>
+                        {assignment.completed_at && (
+                          <span>
+                            Afgerond op{" "}
+                            {new Date(
+                              assignment.completed_at
+                            ).toLocaleDateString("nl-NL")}
+                          </span>
+                        )}
+                        <span>
+                          {assignment.messages.length} berichten
+                        </span>
+                      </div>
+                    </div>
+
+                    {assignment.messages.length > 0 && (
+                      <Link href={`/admin/assignments/${assignment.id}`}>
+                        <Button variant="outline" size="sm">
+                          Bekijk transcript
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+
+                  {/* Preview van laatste berichten bij afgeronde interviews */}
+                  {assignment.status === "completed" &&
+                    assignment.messages.length > 0 && (
+                      <>
+                        <Separator className="my-4" />
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Laatste berichten
+                          </p>
+                          {assignment.messages.slice(-3).map((msg) => (
+                            <div
+                              key={msg.id}
+                              className={`text-sm p-2 rounded ${
+                                msg.role === "assistant"
+                                  ? "bg-slate-50 text-slate-700"
+                                  : "bg-blue-50 text-blue-900"
+                              }`}
+                            >
+                              <span className="font-medium text-xs uppercase tracking-wide">
+                                {msg.role === "assistant" ? "Claude" : "Klant"}:{" "}
+                              </span>
+                              <span className="line-clamp-2">{msg.content}</span>
+                            </div>
+                          ))}
+                          {assignment.messages.length > 3 && (
+                            <p className="text-xs text-muted-foreground">
+                              ... en {assignment.messages.length - 3} eerdere
+                              berichten
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
