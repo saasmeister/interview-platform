@@ -12,7 +12,7 @@ export default async function Home({
     redirect(`/auth/callback?code=${searchParams.code}`);
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   let user = null;
   try {

@@ -104,10 +104,10 @@ BELANGRIJKE INSTRUCTIES:
     // Vraag Claude om te reageren
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 4000,
+      max_tokens: 16000,
       thinking: {
         type: "enabled",
-        budget_tokens: 8000,
+        budget_tokens: 10000,
       },
       system: systemPrompt,
       messages: conversationMessages,

@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   // Simpele middleware: alleen cookies doorsturen, geen zware imports
   return NextResponse.next();
 }
