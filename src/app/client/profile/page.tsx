@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { DOCUMENT_TYPES } from "@/lib/document-config";
 import type { DocumentType, DocumentWithSuggestions } from "@/lib/types";
+import { useLanguage } from "@/lib/i18n";
 
 const DOC_ICONS: Record<DocumentType, string> = {
   icp: "👤",
@@ -26,6 +27,7 @@ export default function ClientProfilePage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const supabase = createClient();
+  const { t } = useLanguage();
 
   useEffect(() => {
     loadDocuments();
@@ -64,9 +66,9 @@ export default function ClientProfilePage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Mijn Profiel</h1>
+        <h1 className="text-3xl font-bold text-slate-900">{t.profile.title}</h1>
         <p className="text-muted-foreground mt-1">
-          Je klantprofiel wordt opgebouwd op basis van interviews en uploads.
+          {t.profile.subtitle}
         </p>
       </div>
 
@@ -130,11 +132,20 @@ export default function ClientProfilePage() {
                         {doc.content.replace(/[#*_\-]/g, "").substring(0, 150)}...
                       </p>
                       <p className="text-xs text-slate-400 mt-3">
-                        Bijgewerkt {new Date(doc.updated_at).toLocaleDateString("nl-NL", {
+                        {t.profile.lastUpdated}{" "}
+                        {new Date(doc.updated_at).toLocaleDateString("nl-NL", {
                           day: "numeric",
                           month: "short",
                         })}
                       </p>
+                      {pendingSuggestions > 0 && (
+                        <p className="text-xs text-amber-700 mt-2">
+                          {t.profile.suggestionHint}{" "}
+                          {doc.suggestions?.find((s) => s.status === "pending")?.source_type === "upload"
+                            ? t.profile.suggestionHintUpload
+                            : t.profile.suggestionHintInterview}
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <div className="py-1">

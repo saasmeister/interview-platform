@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { DOCUMENT_TYPES } from "@/lib/document-config";
 import type { DocumentType } from "@/lib/types";
 
+export const maxDuration = 60;
+
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 });
@@ -102,10 +104,6 @@ export async function POST(
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 8000,
-      thinking: {
-        type: "enabled",
-        budget_tokens: 6000,
-      },
       system: `Je bent een expert in het analyseren van informatie en het verbeteren van klantprofiel-documenten. Schrijf altijd in het Nederlands.`,
       messages: [
         {

@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { DOCUMENT_TYPES } from "@/lib/document-config";
 import type { DocumentType, DocumentWithSuggestions } from "@/lib/types";
+import { useLanguage } from "@/lib/i18n";
 
 export default function DocumentDetailPage() {
   const params = useParams();
@@ -39,6 +40,7 @@ export default function DocumentDetailPage() {
   const [showSuggestionFull, setShowSuggestionFull] = useState<string | null>(null);
   const [showRawContent, setShowRawContent] = useState(false);
   const supabase = createClient();
+  const { t } = useLanguage();
 
   useEffect(() => {
     loadDocument();
@@ -111,7 +113,7 @@ export default function DocumentDetailPage() {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => router.push("/client/profile")}>
-          &larr; Terug naar profiel
+          {t.profile.back}
         </Button>
         <div className="text-center py-16">
           <div className={`w-16 h-16 rounded-2xl ${config.bgColor} flex items-center justify-center mx-auto mb-4`}>
@@ -139,11 +141,11 @@ export default function DocumentDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => router.push("/client/profile")}>
-          &larr; Terug naar profiel
+          {t.profile.back}
         </Button>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs">
-            Versie {document.version}
+            {t.profile.version} {document.version}
           </Badge>
         </div>
       </div>
@@ -157,10 +159,11 @@ export default function DocumentDetailPage() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium text-amber-900">
-                {pendingSuggestions.length} voorgestelde wijziging{pendingSuggestions.length > 1 ? "en" : ""}
+                {pendingSuggestions.length}{" "}
+                {pendingSuggestions.length > 1 ? t.profile.pendingSuggestions : t.profile.pendingSuggestion}
               </p>
               <p className="text-xs text-amber-700 mt-0.5">
-                Er zijn nieuwe inzichten gevonden die dit document kunnen verbeteren.
+                {t.profile.suggestionBanner}
               </p>
             </div>
           </div>
@@ -180,7 +183,7 @@ export default function DocumentDetailPage() {
               {config.title}
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Laatst bijgewerkt:{" "}
+              {t.profile.lastUpdated}:{" "}
               {new Date(document.updated_at).toLocaleDateString("nl-NL", {
                 day: "numeric",
                 month: "long",
@@ -199,7 +202,7 @@ export default function DocumentDetailPage() {
           className="text-slate-500 text-xs"
           onClick={() => setShowRawContent(!showRawContent)}
         >
-          {showRawContent ? "Toon dashboard" : "Bekijk volledig document"}
+          {showRawContent ? t.profile.viewDashboard : t.profile.viewFull}
         </Button>
       </div>
 
@@ -232,7 +235,7 @@ export default function DocumentDetailPage() {
                 <span className="text-sm font-medium text-amber-900">Voorgestelde wijziging</span>
               </div>
               <Badge variant="outline" className="text-amber-700 border-amber-300 text-xs">
-                {suggestion.source_type === "interview" ? "Uit interview" : "Uit upload"}
+                {suggestion.source_type === "interview" ? t.profile.fromInterview : t.profile.fromUpload}
               </Badge>
             </div>
             <p className="text-xs text-amber-700 mt-1">{suggestion.reason}</p>
@@ -281,7 +284,7 @@ export default function DocumentDetailPage() {
                 disabled={approving === suggestion.id}
                 className="bg-green-600 hover:bg-green-700"
               >
-                {approving === suggestion.id ? "Bezig..." : "Goedkeuren & Toepassen"}
+                {approving === suggestion.id ? t.profile.processing : t.profile.approve}
               </Button>
               <Button
                 size="sm"
@@ -290,7 +293,7 @@ export default function DocumentDetailPage() {
                 disabled={approving === suggestion.id}
                 className="text-red-600 hover:text-red-700"
               >
-                Afwijzen
+                {t.profile.reject}
               </Button>
             </div>
           </CardContent>

@@ -28,6 +28,7 @@ export default function UploadsPage() {
   const [uploading, setUploading] = useState(false);
   const [processing, setProcessing] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Upload form state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -58,6 +59,7 @@ export default function UploadsPage() {
   async function handleUpload() {
     if (!selectedFile || !documentType || !userId) return;
 
+    setError(null);
     setUploading(true);
 
     const formData = new FormData();
@@ -92,7 +94,7 @@ export default function UploadsPage() {
         processUpload(data.upload.id);
       }
     } catch (error: any) {
-      alert(error.message);
+      setError(error.message ?? "Er is een fout opgetreden");
     }
 
     setUploading(false);
@@ -100,14 +102,19 @@ export default function UploadsPage() {
 
   async function processUpload(uploadId: string) {
     setProcessing(uploadId);
+    setError(null);
 
     try {
-      await fetch(`/api/uploads/${uploadId}/process`, {
+      const res = await fetch(`/api/uploads/${uploadId}/process`, {
         method: "POST",
       });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error ?? "Verwerking mislukt");
+      }
       await loadData();
-    } catch (error) {
-      console.error("Process error:", error);
+    } catch (error: any) {
+      setError(error.message ?? "Er is een fout opgetreden bij het verwerken");
     }
 
     setProcessing(null);
@@ -142,6 +149,12 @@ export default function UploadsPage() {
           Deel extra informatie om je profiel te verbeteren — transcripties, screenshots, documenten, voice memos.
         </p>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
 
       {/* Upload formulier */}
       <Card>

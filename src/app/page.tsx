@@ -5,11 +5,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export default async function Home({
   searchParams,
 }: {
-  searchParams: { code?: string };
+  searchParams: Promise<{ code?: string }>;
 }) {
+  const params = await searchParams;
   // Als er een auth code is, redirect naar de callback handler
-  if (searchParams.code) {
-    redirect(`/auth/callback?code=${searchParams.code}`);
+  if (params.code) {
+    redirect(`/auth/callback?code=${params.code}`);
   }
 
   const supabase = await createClient();

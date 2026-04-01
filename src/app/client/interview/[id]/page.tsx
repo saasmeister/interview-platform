@@ -11,9 +11,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import type { Message, AssignmentWithInterview } from "@/lib/types";
+import { useLanguage } from "@/lib/i18n";
 
 // Typing animatie component — toont tekst woord voor woord
 function TypewriterText({ text, onComplete }: { text: string; onComplete?: () => void }) {
@@ -60,7 +69,7 @@ function ThinkingIndicator() {
             <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "200ms", animationDuration: "1.2s" }} />
             <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "400ms", animationDuration: "1.2s" }} />
           </div>
-          <span className="text-xs text-slate-400 ml-1">aan het nadenken</span>
+          <span className="text-xs text-slate-400 ml-1">{t.interview.thinking}</span>
         </div>
       </div>
     </div>
@@ -81,6 +90,9 @@ export default function InterviewPage() {
   const [autoStarted, setAutoStarted] = useState(false);
   const [animatingMessageId, setAnimatingMessageId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const { t } = useLanguage();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const supabase = createClient();
@@ -221,9 +233,8 @@ export default function InterviewPage() {
     textareaRef.current?.focus();
   }
 
-  async function completeInterview() {
-    if (!confirm("Weet je zeker dat je dit interview wilt afronden?")) return;
-
+  async function confirmComplete() {
+    setCompleting(true);
     await supabase
       .from("assignments")
       .update({ status: "completed", completed_at: new Date().toISOString() })
@@ -252,6 +263,8 @@ export default function InterviewPage() {
     }
 
     setIsCompleted(true);
+    setShowCompleteDialog(false);
+    setCompleting(false);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -289,9 +302,9 @@ export default function InterviewPage() {
             <h1 className="text-2xl font-bold text-slate-900">
               {assignment.interview?.title}
             </h1>
-            <p className="text-muted-foreground mt-1">Dit interview is afgerond</p>
+            <p className="text-muted-foreground mt-1">{t.interview.completed}</p>
           </div>
-          <Badge className="bg-green-100 text-green-700">Afgerond</Badge>
+          <Badge className="bg-green-100 text-green-700">{t.interview.completedBadge}</Badge>
         </div>
 
         <Card>
@@ -327,7 +340,7 @@ export default function InterviewPage() {
         </Card>
 
         <Button variant="outline" onClick={() => router.push("/client")}>
-          Terug naar overzicht
+          {t.interview.backToOverview}
         </Button>
       </div>
     );
@@ -374,13 +387,13 @@ export default function InterviewPage() {
               onClick={() => router.push("/client")}
               className="text-xs text-slate-400 hover:text-slate-600 transition-colors px-3 py-1.5 rounded-md hover:bg-slate-50"
             >
-              Pauzeer
+              {t.interview.pause}
             </button>
             <button
-              onClick={completeInterview}
+              onClick={() => setShowCompleteDialog(true)}
               className="text-xs text-green-600 hover:text-green-700 transition-colors px-3 py-1.5 rounded-md hover:bg-green-50 font-medium"
             >
-              Afronden
+              {t.interview.finish}
             </button>
           </div>
         </div>
@@ -442,7 +455,7 @@ export default function InterviewPage() {
           <div className="relative flex items-end bg-slate-50 rounded-2xl border border-slate-200 focus-within:border-slate-300 focus-within:ring-2 focus-within:ring-slate-100 transition-all">
             <textarea
               ref={textareaRef}
-              placeholder="Typ je antwoord..."
+              placeholder={t.interview.placeholder}
               value={input}
               onChange={handleTextareaChange}
               onKeyDown={handleKeyDown}
@@ -463,10 +476,38 @@ export default function InterviewPage() {
             </button>
           </div>
           <p className="text-[11px] text-slate-300 text-center mt-2">
-            Enter om te versturen · Shift+Enter voor nieuwe regel
+            {t.interview.hint}
           </p>
         </div>
       </div>
+
+      {/* Afronden bevestiging dialog */}
+      <Dialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Interview afronden</DialogTitle>
+            <DialogDescription>
+              Weet je zeker dat je dit interview wilt afronden? Na het afronden worden je documenten automatisch gegenereerd.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowCompleteDialog(false)}
+              disabled={completing}
+            >
+              Annuleren
+            </Button>
+            <Button
+              onClick={confirmComplete}
+              disabled={completing}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {completing ? "Afronden..." : "Ja, afronden"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
