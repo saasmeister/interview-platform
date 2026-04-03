@@ -43,6 +43,7 @@ export default function InterviewsPage() {
   const [saving, setSaving] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [assigningInterview, setAssigningInterview] = useState<Interview | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -76,6 +77,7 @@ export default function InterviewsPage() {
     setInterviewType("profile");
     setTopic("");
     setEditingInterview(null);
+    setError(null);
   }
 
   function openCreateDialog() {
@@ -96,39 +98,42 @@ export default function InterviewsPage() {
 
   async function handleSave() {
     setSaving(true);
+    setError(null);
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return;
-
-    if (editingInterview) {
-      // Bewerken
-      await supabase
-        .from("interviews")
-        .update({
-          title,
-          description,
-          system_prompt: systemPrompt,
-          document_type: interviewType === "profile" ? (documentType || null) : null,
-          interview_type: interviewType,
-          topic: interviewType === "content" ? (topic || null) : null,
-        })
-        .eq("id", editingInterview.id);
-    } else {
-      // Nieuw aanmaken
-      await supabase.from("interviews").insert({
-        title,
-        description,
-        system_prompt: systemPrompt,
-        document_type: interviewType === "profile" ? (documentType || null) : null,
-        interview_type: interviewType,
-        topic: interviewType === "content" ? (topic || null) : null,
-        created_by: user.id,
-      });
+    if (!user) {
+      setError("Je bent niet ingelogd. Log opnieuw in en probeer het nog eens.");
+      setSaving(false);
+      return;
     }
 
+    const payload = {
+      title,
+      description,
+      system_prompt: systemPrompt,
+      document_type: interviewType === "profile" ? (documentType || null) : null,
+      interview_type: interviewType,
+      topic: interviewType === "content" ? (topic || null) : null,
+    };
+
+    const { error: dbError } = editingInterview
+      ? await supabase
+          .from("interviews")
+          .update(payload)
+          .eq("id", editingInterview.id)
+      : await supabase
+          .from("interviews")
+          .insert({ ...payload, created_by: user.id });
+
     setSaving(false);
+
+    if (dbError) {
+      setError(`Kon interview niet opslaan: ${dbError.message}`);
+      return;
+    }
+
     setDialogOpen(false);
     resetForm();
     loadInterviews();
@@ -137,7 +142,12 @@ export default function InterviewsPage() {
   async function handleDelete(id: string) {
     if (!confirm("Weet je zeker dat je dit interview wilt verwijderen?")) return;
 
-    await supabase.from("interviews").delete().eq("id", id);
+    const { error: dbError } = await supabase.from("interviews").delete().eq("id", id);
+    if (dbError) {
+      setError(`Kon interview niet verwijderen: ${dbError.message}`);
+      return;
+    }
+    setError(null);
     loadInterviews();
   }
 
@@ -313,6 +323,11 @@ export default function InterviewsPage() {
                 />
               </div>
             </div>
+            {error && (
+              <div className="rounded-md bg-red-50 border border-red-200 p-3">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
             <DialogFooter>
               <Button
                 variant="outline"
