@@ -4,13 +4,23 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import Link from "next/link";
 import type { Profile } from "@/lib/types";
 import { useLanguage, LanguageProvider, type Lang } from "@/lib/i18n";
@@ -20,15 +30,32 @@ function ClientLayoutInner({ children }: { children: React.ReactNode }) {
   const { lang, setLang, t } = useLanguage();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [accName, setAccName] = useState("");
+  const [accPassword, setAccPassword] = useState("");
+  const [accPasswordConfirm, setAccPasswordConfirm] = useState("");
+  const [accSaving, setAccSaving] = useState(false);
+  const [accError, setAccError] = useState("");
+  const [accSuccess, setAccSuccess] = useState("");
   const supabase = createClient();
 
   useEffect(() => {
     async function loadProfile() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const userId = session.user.id;
-      const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
-      if (data) setProfile(data);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        window.location.href = "/login";
+        return;
+      }
+      const userId = user.id;
+      const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
+
+      if (error || !data || data.role !== "client") {
+        await supabase.auth.signOut();
+        window.location.href = "/login";
+        return;
+      }
+
+      setProfile(data);
       const { count } = await supabase
         .from("notifications")
         .select("*", { count: "exact", head: true })
@@ -37,11 +64,61 @@ function ClientLayoutInner({ children }: { children: React.ReactNode }) {
       setUnreadCount(count ?? 0);
     }
     loadProfile();
-  }, [supabase]);
+  }, [supabase, router]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut({ scope: "local" });
     window.location.href = "/login";
+  };
+
+  const handleAccountSave = async () => {
+    setAccError("");
+    setAccSuccess("");
+
+    if (accPassword && accPassword !== accPasswordConfirm) {
+      setAccError(t.account.passwordMismatch);
+      return;
+    }
+    if (accPassword && accPassword.length < 6) {
+      setAccError(t.account.newPasswordHint);
+      return;
+    }
+
+    setAccSaving(true);
+    try {
+      const res = await fetch("/api/account", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: accName || undefined,
+          newPassword: accPassword || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAccError(data.error || t.account.errorGeneric);
+      } else {
+        setAccSuccess(t.account.success);
+        if (accName && profile) {
+          setProfile({ ...profile, full_name: accName });
+        }
+        setAccPassword("");
+        setAccPasswordConfirm("");
+      }
+    } catch {
+      setAccError(t.account.errorGeneric);
+    } finally {
+      setAccSaving(false);
+    }
+  };
+
+  const openAccountDialog = () => {
+    setAccName(profile?.full_name || "");
+    setAccPassword("");
+    setAccPasswordConfirm("");
+    setAccError("");
+    setAccSuccess("");
+    setAccountOpen(true);
   };
 
   const initials = profile?.full_name
@@ -113,6 +190,13 @@ function ClientLayoutInner({ children }: { children: React.ReactNode }) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={openAccountDialog}
+                    className="cursor-pointer"
+                  >
+                    {t.account.settings}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="text-red-600 cursor-pointer">
                     {t.nav.logout}
                   </DropdownMenuItem>
@@ -122,6 +206,70 @@ function ClientLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
+
+      {/* Account settings dialog */}
+      <Dialog open={accountOpen} onOpenChange={setAccountOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle>{t.account.title}</DialogTitle>
+            <DialogDescription>
+              {t.account.title}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {accError && (
+              <div className="bg-red-50 text-red-700 text-sm p-3 rounded-md border border-red-200">
+                {accError}
+              </div>
+            )}
+            {accSuccess && (
+              <div className="bg-green-50 text-green-700 text-sm p-3 rounded-md border border-green-200">
+                {accSuccess}
+              </div>
+            )}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">
+                {t.account.nameLabel}
+              </label>
+              <Input
+                value={accName}
+                onChange={(e) => setAccName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">
+                {t.account.newPasswordLabel}
+              </label>
+              <Input
+                type="password"
+                value={accPassword}
+                onChange={(e) => setAccPassword(e.target.value)}
+                placeholder={t.account.newPasswordHint}
+              />
+            </div>
+            {accPassword && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">
+                  {t.account.confirmPasswordLabel}
+                </label>
+                <Input
+                  type="password"
+                  value={accPasswordConfirm}
+                  onChange={(e) => setAccPasswordConfirm(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAccountOpen(false)}>
+              {t.general.cancel}
+            </Button>
+            <Button onClick={handleAccountSave} disabled={accSaving}>
+              {accSaving ? t.account.saving : t.account.saveBtn}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}

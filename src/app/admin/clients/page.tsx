@@ -32,6 +32,8 @@ export default function ClientsPage() {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState("");
+  const [inviteUrl, setInviteUrl] = useState("");
+  const [copied, setCopied] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -71,7 +73,7 @@ export default function ClientsPage() {
         return;
       }
 
-      setDialogOpen(false);
+      setInviteUrl(data.inviteUrl || "");
       setEmail("");
       setFullName("");
       loadClients();
@@ -102,7 +104,7 @@ export default function ClientsPage() {
 
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open);
-          if (!open) { setError(""); setEmail(""); setFullName(""); }
+          if (!open) { setError(""); setEmail(""); setFullName(""); setInviteUrl(""); setCopied(false); }
         }}>
           <DialogTrigger asChild>
             <Button>
@@ -125,58 +127,91 @@ export default function ClientsPage() {
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[450px]">
-            <DialogHeader>
-              <DialogTitle>Nieuwe klant aanmaken</DialogTitle>
-              <DialogDescription>
-                Voeg een klant toe met hun naam en Google-emailadres. De klant
-                kan later inloggen met dit emailadres via Google OAuth.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              {error && (
-                <div className="bg-red-50 text-red-700 text-sm p-3 rounded-md border border-red-200">
-                  {error}
+            {inviteUrl ? (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Uitnodigingslink</DialogTitle>
+                  <DialogDescription>
+                    Klant aangemaakt! Stuur onderstaande link naar de klant. Via deze link kan diegene een wachtwoord instellen en inloggen.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground mb-1">Uitnodigingslink:</p>
+                    <p className="text-sm font-mono break-all text-slate-800">{inviteUrl}</p>
+                  </div>
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      navigator.clipboard.writeText(inviteUrl);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                  >
+                    {copied ? "Gekopieerd!" : "Link kopiëren"}
+                  </Button>
                 </div>
-              )}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">
-                  Volledige naam
-                </label>
-                <Input
-                  placeholder="Jan de Vries"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">
-                  Emailadres (Google account)
-                </label>
-                <Input
-                  type="email"
-                  placeholder="jan@bedrijf.nl"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Dit moet het emailadres zijn waarmee de klant inlogt via Google
-                </p>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setDialogOpen(false)}
-              >
-                Annuleren
-              </Button>
-              <Button
-                onClick={handleCreate}
-                disabled={!email.trim() || !fullName.trim() || saving}
-              >
-                {saving ? "Aanmaken..." : "Klant aanmaken"}
-              </Button>
-            </DialogFooter>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => { setDialogOpen(false); setInviteUrl(""); setCopied(false); }}>
+                    Sluiten
+                  </Button>
+                </DialogFooter>
+              </>
+            ) : (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Nieuwe klant aanmaken</DialogTitle>
+                  <DialogDescription>
+                    Voeg een klant toe met hun naam en emailadres. Je ontvangt een uitnodigingslink die je naar de klant kunt sturen.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  {error && (
+                    <div className="bg-red-50 text-red-700 text-sm p-3 rounded-md border border-red-200">
+                      {error}
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">
+                      Volledige naam
+                    </label>
+                    <Input
+                      placeholder="Jan de Vries"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">
+                      Emailadres
+                    </label>
+                    <Input
+                      type="email"
+                      placeholder="jan@bedrijf.nl"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      De klant gebruikt dit emailadres om in te loggen
+                    </p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setDialogOpen(false)}
+                  >
+                    Annuleren
+                  </Button>
+                  <Button
+                    onClick={handleCreate}
+                    disabled={!email.trim() || !fullName.trim() || saving}
+                  >
+                    {saving ? "Aanmaken..." : "Klant aanmaken"}
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
           </DialogContent>
         </Dialog>
       </div>

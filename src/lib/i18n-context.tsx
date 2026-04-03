@@ -25,6 +25,26 @@ const translations = {
       checkEmail: "Check je e-mail voor een bevestigingslink.",
       errorGeneric: "Er is een fout opgetreden. Probeer het opnieuw.",
       errorInvalid: "Ongeldig e-mailadres of wachtwoord.",
+      noSelfRegister: "Registreren is alleen mogelijk via een uitnodigingslink van de admin.",
+    },
+    // Invite
+    invite: {
+      title: "Account aanmaken",
+      subtitle: "Je bent uitgenodigd om een account aan te maken",
+      emailLabel: "E-mailadres",
+      nameLabel: "Volledige naam",
+      passwordLabel: "Wachtwoord",
+      passwordConfirmLabel: "Wachtwoord bevestigen",
+      passwordHint: "Minimaal 6 tekens",
+      passwordMismatch: "Wachtwoorden komen niet overeen",
+      submitBtn: "Account aanmaken",
+      submitting: "Account aanmaken...",
+      success: "Account aangemaakt! Je kunt nu inloggen.",
+      loginLink: "Ga naar inloggen",
+      invalidToken: "Deze uitnodigingslink is ongeldig of verlopen.",
+      alreadyUsed: "Deze uitnodiging is al gebruikt.",
+      errorGeneric: "Er is een fout opgetreden. Probeer het opnieuw.",
+      backToLogin: "Terug naar inloggen",
     },
     // Nav
     nav: {
@@ -106,6 +126,20 @@ const translations = {
       uploadedAt: "Geüpload op",
       process: "Verwerken",
     },
+    // Account
+    account: {
+      settings: "Accountinstellingen",
+      title: "Account wijzigen",
+      nameLabel: "Volledige naam",
+      newPasswordLabel: "Nieuw wachtwoord",
+      newPasswordHint: "Laat leeg om niet te wijzigen",
+      confirmPasswordLabel: "Bevestig nieuw wachtwoord",
+      passwordMismatch: "Wachtwoorden komen niet overeen",
+      saveBtn: "Opslaan",
+      saving: "Opslaan...",
+      success: "Account bijgewerkt!",
+      errorGeneric: "Er is een fout opgetreden. Probeer het opnieuw.",
+    },
     // General
     general: {
       loading: "Laden...",
@@ -136,6 +170,26 @@ const translations = {
       checkEmail: "Check your email for a confirmation link.",
       errorGeneric: "An error occurred. Please try again.",
       errorInvalid: "Invalid email address or password.",
+      noSelfRegister: "Registration is only possible via an invitation link from the admin.",
+    },
+    // Invite
+    invite: {
+      title: "Create account",
+      subtitle: "You have been invited to create an account",
+      emailLabel: "Email address",
+      nameLabel: "Full name",
+      passwordLabel: "Password",
+      passwordConfirmLabel: "Confirm password",
+      passwordHint: "Minimum 6 characters",
+      passwordMismatch: "Passwords do not match",
+      submitBtn: "Create account",
+      submitting: "Creating account...",
+      success: "Account created! You can now log in.",
+      loginLink: "Go to login",
+      invalidToken: "This invitation link is invalid or expired.",
+      alreadyUsed: "This invitation has already been used.",
+      errorGeneric: "An error occurred. Please try again.",
+      backToLogin: "Back to login",
     },
     // Nav
     nav: {
@@ -216,6 +270,20 @@ const translations = {
       fileName: "File name",
       uploadedAt: "Uploaded at",
       process: "Process",
+    },
+    // Account
+    account: {
+      settings: "Account settings",
+      title: "Edit account",
+      nameLabel: "Full name",
+      newPasswordLabel: "New password",
+      newPasswordHint: "Leave empty to keep current password",
+      confirmPasswordLabel: "Confirm new password",
+      passwordMismatch: "Passwords do not match",
+      saveBtn: "Save",
+      saving: "Saving...",
+      success: "Account updated!",
+      errorGeneric: "An error occurred. Please try again.",
     },
     // General
     general: {

@@ -27,10 +27,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Maak een "placeholder" profiel aan.
-    // Als de klant later inlogt met Google (met hetzelfde email),
-    // koppelen we het Supabase auth account aan dit profiel.
-    // Voor nu maken we een profiel aan met een tijdelijk UUID.
+    // Genereer een uniek invitation token
+    const invitationToken = crypto.randomUUID();
+
+    // Maak een "placeholder" profiel aan met invitation token
     const { data: profile, error } = await supabaseAdmin
       .from("profiles")
       .insert({
@@ -39,6 +39,8 @@ export async function POST(request: NextRequest) {
         full_name: fullName.trim(),
         avatar_url: null,
         role: "client",
+        invitation_token: invitationToken,
+        invitation_used: false,
       })
       .select()
       .single();
@@ -50,7 +52,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ profile });
+    // Bouw de uitnodigingslink
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "";
+    const inviteUrl = `${appUrl}/invite/${invitationToken}`;
+
+    return NextResponse.json({ profile, inviteUrl });
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message ?? "Er is een fout opgetreden" },

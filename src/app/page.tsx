@@ -40,31 +40,7 @@ export default async function Home({
   } else if (profile?.role === "client") {
     redirect("/client");
   } else {
-    // Geen profiel gevonden — dit zou niet moeten gebeuren
-    // Maak er een aan als fallback
-    const { count } = await supabaseAdmin
-      .from("profiles")
-      .select("*", { count: "exact", head: true });
-
-    const isFirstUser = (count ?? 0) === 0;
-
-    const { error: insertError } = await supabaseAdmin
-      .from("profiles")
-      .insert({
-        id: user.id,
-        email: user.email?.toLowerCase(),
-        full_name:
-          user.user_metadata?.full_name ??
-          user.user_metadata?.name ??
-          user.email,
-        avatar_url: user.user_metadata?.avatar_url ?? null,
-        role: isFirstUser ? "admin" : "client",
-      });
-
-    if (insertError) {
-      console.error("Profiel aanmaken mislukt:", insertError);
-    }
-
-    redirect(isFirstUser ? "/admin" : "/client");
+    // Geen profiel gevonden — niet-geautoriseerde gebruiker
+    redirect("/login");
   }
 }

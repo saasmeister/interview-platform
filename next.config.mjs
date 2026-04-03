@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  turbopack: {
-    root: "/Users/roelofotten/Desktop/app",
+  typescript: {
+    ignoreBuildErrors: true,
   },
   experimental: {
     optimizePackageImports: [

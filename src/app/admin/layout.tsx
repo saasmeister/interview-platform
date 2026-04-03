@@ -4,13 +4,23 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import Link from "next/link";
 import type { Profile } from "@/lib/types";
 
@@ -22,27 +32,40 @@ export default function AdminLayout({
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [accName, setAccName] = useState("");
+  const [accPassword, setAccPassword] = useState("");
+  const [accPasswordConfirm, setAccPasswordConfirm] = useState("");
+  const [accSaving, setAccSaving] = useState(false);
+  const [accError, setAccError] = useState("");
+  const [accSuccess, setAccSuccess] = useState("");
   const supabase = createClient();
 
   useEffect(() => {
     async function loadProfile() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: { user } } = await supabase.auth.getUser();
 
-      if (!session) return;
+      if (!user) {
+        window.location.href = "/login";
+        return;
+      }
 
-      const userId = session.user.id;
+      const userId = user.id;
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", userId)
         .single();
 
-      if (data) setProfile(data);
+      if (error || !data || data.role !== "admin") {
+        await supabase.auth.signOut();
+        window.location.href = "/login";
+        return;
+      }
 
-      // Tel ongelezen notificaties
+      setProfile(data);
+
       const { count } = await supabase
         .from("notifications")
         .select("*", { count: "exact", head: true })
@@ -53,11 +76,61 @@ export default function AdminLayout({
     }
 
     loadProfile();
-  }, [supabase]);
+  }, [supabase, router]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut({ scope: "local" });
     window.location.href = "/login";
+  };
+
+  const handleAccountSave = async () => {
+    setAccError("");
+    setAccSuccess("");
+
+    if (accPassword && accPassword !== accPasswordConfirm) {
+      setAccError("Wachtwoorden komen niet overeen");
+      return;
+    }
+    if (accPassword && accPassword.length < 6) {
+      setAccError("Wachtwoord moet minimaal 6 tekens zijn");
+      return;
+    }
+
+    setAccSaving(true);
+    try {
+      const res = await fetch("/api/account", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: accName || undefined,
+          newPassword: accPassword || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAccError(data.error || "Er is een fout opgetreden");
+      } else {
+        setAccSuccess("Account bijgewerkt!");
+        if (accName && profile) {
+          setProfile({ ...profile, full_name: accName });
+        }
+        setAccPassword("");
+        setAccPasswordConfirm("");
+      }
+    } catch {
+      setAccError("Er is een fout opgetreden");
+    } finally {
+      setAccSaving(false);
+    }
+  };
+
+  const openAccountDialog = () => {
+    setAccName(profile?.full_name || "");
+    setAccPassword("");
+    setAccPasswordConfirm("");
+    setAccError("");
+    setAccSuccess("");
+    setAccountOpen(true);
   };
 
   const initials = profile?.full_name
@@ -68,11 +141,9 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Top navigation bar */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            {/* Logo + navigatie */}
             <div className="flex items-center gap-8">
               <Link href="/admin" className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
@@ -114,7 +185,6 @@ export default function AdminLayout({
               </nav>
             </div>
 
-            {/* Rechts: notificaties + profiel */}
             <div className="flex items-center gap-3">
               <Link href="/admin/notifications">
                 <Button variant="ghost" size="sm" className="relative">
@@ -158,6 +228,13 @@ export default function AdminLayout({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
+                    onClick={openAccountDialog}
+                    className="cursor-pointer"
+                  >
+                    Accountinstellingen
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
                     onClick={handleLogout}
                     className="text-red-600 cursor-pointer"
                   >
@@ -170,7 +247,70 @@ export default function AdminLayout({
         </div>
       </header>
 
-      {/* Page content */}
+      {/* Account settings dialog */}
+      <Dialog open={accountOpen} onOpenChange={setAccountOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle>Accountinstellingen</DialogTitle>
+            <DialogDescription>
+              Wijzig je naam of wachtwoord.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {accError && (
+              <div className="bg-red-50 text-red-700 text-sm p-3 rounded-md border border-red-200">
+                {accError}
+              </div>
+            )}
+            {accSuccess && (
+              <div className="bg-green-50 text-green-700 text-sm p-3 rounded-md border border-green-200">
+                {accSuccess}
+              </div>
+            )}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">
+                Volledige naam
+              </label>
+              <Input
+                value={accName}
+                onChange={(e) => setAccName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">
+                Nieuw wachtwoord
+              </label>
+              <Input
+                type="password"
+                value={accPassword}
+                onChange={(e) => setAccPassword(e.target.value)}
+                placeholder="Laat leeg om niet te wijzigen"
+              />
+            </div>
+            {accPassword && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">
+                  Bevestig nieuw wachtwoord
+                </label>
+                <Input
+                  type="password"
+                  value={accPasswordConfirm}
+                  onChange={(e) => setAccPasswordConfirm(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAccountOpen(false)}>
+              Annuleren
+            </Button>
+            <Button onClick={handleAccountSave} disabled={accSaving}>
+              {accSaving ? "Opslaan..." : "Opslaan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>

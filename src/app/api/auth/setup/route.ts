@@ -64,23 +64,9 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Nieuw profiel
-  const { count } = await supabaseAdmin
-    .from("profiles")
-    .select("*", { count: "exact", head: true });
-
-  const isFirstUser = (count ?? 0) === 0;
-
-  await supabaseAdmin.from("profiles").insert({
-    id: user.id,
-    email: user.email?.toLowerCase(),
-    full_name:
-      user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email,
-    avatar_url: user.user_metadata?.avatar_url ?? null,
-    role: isFirstUser ? "admin" : "client",
-  });
-
-  return NextResponse.json({
-    redirect: isFirstUser ? "/admin" : "/client",
-  });
+  // Geen profiel gevonden — zelf-registratie is niet toegestaan
+  return NextResponse.json(
+    { error: "Geen profiel gevonden. Registreren is alleen mogelijk via een uitnodigingslink." },
+    { status: 403 }
+  );
 }

@@ -73,8 +73,8 @@ export function AssignDialog({
     }
 
     // Maak de assignment aan
-    const { data: assignment } = await supabase
-      .from("assignments")
+    const { data: assignment } = await (supabase
+      .from("assignments") as any)
       .insert({
         interview_id: interview.id,
         client_id: clientId,
@@ -86,7 +86,7 @@ export function AssignDialog({
 
     // Maak een in-app notificatie voor de klant + stuur email
     if (assignment) {
-      await supabase.from("notifications").insert({
+      await (supabase.from("notifications") as any).insert({
         user_id: clientId,
         message: `Je hebt een nieuw interview: "${interview.title}"`,
         link: `/client/interview/${assignment.id}`,

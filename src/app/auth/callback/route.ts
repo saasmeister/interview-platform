@@ -125,38 +125,11 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${origin}${redirectTo}`);
       }
 
-      // 3. Helemaal nieuw — eerste gebruiker wordt admin
-      const { count } = await supabaseAdmin
-        .from("profiles")
-        .select("*", { count: "exact", head: true });
-
-      const isFirstUser = (count ?? 0) === 0;
-      console.log("[Auth Callback] Eerste gebruiker:", isFirstUser);
-
-      const { error: insertError } = await supabaseAdmin
-        .from("profiles")
-        .insert({
-          id: user.id,
-          email: user.email?.toLowerCase(),
-          full_name:
-            user.user_metadata?.full_name ??
-            user.user_metadata?.name ??
-            user.email,
-          avatar_url: user.user_metadata?.avatar_url ?? null,
-          role: isFirstUser ? "admin" : "client",
-        });
-
-      if (insertError) {
-        console.error("[Auth Callback] Insert error:", insertError.message);
-        return NextResponse.redirect(`${origin}/login?error=profile`);
-      }
-
-      console.log(
-        "[Auth Callback] Profiel aangemaakt als:",
-        isFirstUser ? "admin" : "client"
-      );
-      const redirectTo = isFirstUser ? "/admin" : "/client";
-      return NextResponse.redirect(`${origin}${redirectTo}`);
+      // 3. Geen profiel gevonden — zelf-registratie is niet toegestaan
+      console.log("[Auth Callback] Geen profiel gevonden, zelf-registratie geblokkeerd");
+      // Verwijder de auth sessie zodat de onbekende gebruiker niet ingelogd blijft
+      await supabase.auth.signOut();
+      return NextResponse.redirect(`${origin}/login?error=no_profile`);
     }
   }
 
