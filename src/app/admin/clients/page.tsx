@@ -34,6 +34,7 @@ export default function ClientsPage() {
   const [error, setError] = useState("");
   const [inviteUrl, setInviteUrl] = useState("");
   const [copied, setCopied] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -82,6 +83,25 @@ export default function ClientsPage() {
     }
 
     setSaving(false);
+  }
+
+  async function handleDelete(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm("Weet je zeker dat je deze klant wilt verwijderen? Alle bijbehorende data wordt ook verwijderd.")) return;
+
+    setDeletingId(id);
+    try {
+      const response = await fetch(`/api/clients/${id}`, { method: "DELETE" });
+      if (response.ok) {
+        loadClients();
+      } else {
+        const data = await response.json();
+        alert(data.error ?? "Er is een fout opgetreden");
+      }
+    } catch {
+      alert("Er is een fout opgetreden bij het verwijderen");
+    }
+    setDeletingId(null);
   }
 
   if (loading) {
@@ -260,6 +280,15 @@ export default function ClientsPage() {
                         Aangemaakt op{" "}
                         {new Date(client.created_at).toLocaleDateString("nl-NL")}
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        disabled={deletingId === client.id}
+                        onClick={(e) => handleDelete(client.id, e)}
+                      >
+                        {deletingId === client.id ? "..." : "Verwijderen"}
+                      </Button>
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"

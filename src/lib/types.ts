@@ -6,6 +6,8 @@ export type MessageRole = "user" | "assistant";
 
 export type DocumentType = "icp" | "offer" | "positioning" | "tone_of_voice";
 
+export type InterviewType = "profile" | "content";
+
 export type SuggestionStatus = "pending" | "approved" | "rejected";
 
 export interface Profile {
@@ -24,6 +26,8 @@ export interface Interview {
   description: string;
   system_prompt: string;
   document_type: DocumentType | null;
+  interview_type: InterviewType;
+  topic: string | null;
   created_at: string;
 }
 
@@ -36,6 +40,7 @@ export interface Assignment {
   assigned_at: string;
   completed_at: string | null;
   progress: number;
+  output_content: string | null;
 }
 
 export interface Message {

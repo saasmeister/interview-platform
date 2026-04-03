@@ -15,6 +15,11 @@ const ReactMarkdown = dynamic(
   () => import("react-markdown"),
   { loading: () => <div className="py-8 text-center text-sm text-slate-400">Laden...</div> }
 );
+
+const SuggestionImpact = dynamic(
+  () => import("@/components/suggestion-impact").then((mod) => ({ default: mod.SuggestionImpact })),
+  { loading: () => <div className="py-4 text-center text-sm text-slate-400">Impact analyseren...</div> }
+);
 import {
   Card,
   CardContent,
@@ -194,8 +199,26 @@ export default function DocumentDetailPage() {
         </div>
       </div>
 
-      {/* Toggle */}
-      <div className="flex justify-end">
+      {/* Acties */}
+      <div className="flex items-center justify-between">
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-2"
+          onClick={() => {
+            if (!document) return;
+            const blob = new Blob([document.content], { type: "text/markdown" });
+            const url = URL.createObjectURL(blob);
+            const a = window.document.createElement("a");
+            a.href = url;
+            a.download = `${docType}-${new Date().toISOString().split("T")[0]}.md`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download .md
+        </Button>
         <Button
           size="sm"
           variant="ghost"
@@ -225,7 +248,7 @@ export default function DocumentDetailPage() {
         <DocumentViewer content={document.content} type={docType} />
       )}
 
-      {/* Suggesties */}
+      {/* Suggesties met impact-preview */}
       {pendingSuggestions.map((suggestion) => (
         <Card key={suggestion.id} className="border-amber-200 shadow-sm overflow-hidden">
           <div className="bg-amber-50 px-6 py-3 border-b border-amber-200">
@@ -241,8 +264,19 @@ export default function DocumentDetailPage() {
             <p className="text-xs text-amber-700 mt-1">{suggestion.reason}</p>
           </div>
           <CardContent className="p-6">
+            {/* Impact overzicht — laat zien wat er per sectie verandert */}
+            <div className="mb-4">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-3">Impact op je document</p>
+              <SuggestionImpact
+                currentContent={document.content}
+                suggestedContent={suggestion.suggested_content}
+              />
+            </div>
+
+            {/* Volledig document toggle */}
             {showSuggestionFull === suggestion.id ? (
-              <div className="mb-4">
+              <div className="mb-4 mt-4 border-t pt-4">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-3">Volledig nieuw document</p>
                 <article className="prose prose-slate prose-sm max-w-none
                   prose-headings:text-slate-900 prose-headings:font-semibold
                   prose-p:text-slate-700 prose-p:leading-relaxed
@@ -260,22 +294,19 @@ export default function DocumentDetailPage() {
                 </Button>
               </div>
             ) : (
-              <div className="mb-4">
-                <p className="text-sm text-slate-600 line-clamp-4">
-                  {suggestion.suggested_content.substring(0, 300)}...
-                </p>
+              <div className="mt-3">
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="mt-2 text-xs text-blue-600"
+                  className="text-xs text-blue-600"
                   onClick={() => setShowSuggestionFull(suggestion.id)}
                 >
-                  Volledig bekijken
+                  Volledig nieuw document bekijken
                 </Button>
               </div>
             )}
 
-            <Separator className="mb-4" />
+            <Separator className="my-4" />
 
             <div className="flex gap-2">
               <Button

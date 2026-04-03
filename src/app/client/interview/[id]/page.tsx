@@ -295,6 +295,9 @@ export default function InterviewPage() {
 
   // Afgerond: overzicht
   if (isCompleted) {
+    const outputContent = (assignment as any).output_content as string | null;
+    const isContentInterview = (assignment.interview as any)?.interview_type === "content";
+
     return (
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
@@ -304,12 +307,53 @@ export default function InterviewPage() {
             </h1>
             <p className="text-muted-foreground mt-1">{t.interview.completed}</p>
           </div>
-          <Badge className="bg-green-100 text-green-700">{t.interview.completedBadge}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge className="bg-green-100 text-green-700">{t.interview.completedBadge}</Badge>
+            {isContentInterview && (
+              <Badge className="bg-green-100 text-green-700 text-xs">Content</Badge>
+            )}
+          </div>
         </div>
+
+        {/* Content output (alleen bij content-interviews) */}
+        {outputContent && (
+          <Card className="border-green-200">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg text-green-800">Output</CardTitle>
+                  <CardDescription>De gegenereerde content op basis van je interview</CardDescription>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => {
+                    const blob = new Blob([outputContent], { type: "text/markdown" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `${assignment.interview?.title?.replace(/\s+/g, "-").toLowerCase() ?? "output"}-${new Date().toISOString().split("T")[0]}.md`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Download .md
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <article className="prose prose-slate prose-sm max-w-none prose-headings:text-slate-900 prose-p:text-slate-700 prose-li:text-slate-700 prose-strong:text-slate-900">
+                <div dangerouslySetInnerHTML={{ __html: outputContent.replace(/\n/g, "<br/>") }} />
+              </article>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Overzicht</CardTitle>
+            <CardTitle className="text-lg">Gesprek</CardTitle>
             <CardDescription>Alle berichten uit je interview</CardDescription>
           </CardHeader>
           <CardContent>

@@ -31,7 +31,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AssignDialog } from "./assign-dialog";
 import { DOCUMENT_TYPES } from "@/lib/document-config";
-import type { Interview, DocumentType } from "@/lib/types";
+import type { Interview, DocumentType, InterviewType } from "@/lib/types";
 
 export default function InterviewsPage() {
   const [interviews, setInterviews] = useState<Interview[]>([]);
@@ -49,6 +49,8 @@ export default function InterviewsPage() {
   const [description, setDescription] = useState("");
   const [systemPrompt, setSystemPrompt] = useState("");
   const [documentType, setDocumentType] = useState<string>("");
+  const [interviewType, setInterviewType] = useState<InterviewType>("profile");
+  const [topic, setTopic] = useState("");
 
   const supabase = createClient();
 
@@ -71,6 +73,8 @@ export default function InterviewsPage() {
     setDescription("");
     setSystemPrompt("");
     setDocumentType("");
+    setInterviewType("profile");
+    setTopic("");
     setEditingInterview(null);
   }
 
@@ -85,6 +89,8 @@ export default function InterviewsPage() {
     setDescription(interview.description);
     setSystemPrompt(interview.system_prompt);
     setDocumentType(interview.document_type ?? "");
+    setInterviewType(interview.interview_type ?? "profile");
+    setTopic(interview.topic ?? "");
     setDialogOpen(true);
   }
 
@@ -104,7 +110,9 @@ export default function InterviewsPage() {
           title,
           description,
           system_prompt: systemPrompt,
-          document_type: documentType || null,
+          document_type: interviewType === "profile" ? (documentType || null) : null,
+          interview_type: interviewType,
+          topic: interviewType === "content" ? (topic || null) : null,
         })
         .eq("id", editingInterview.id);
     } else {
@@ -113,7 +121,9 @@ export default function InterviewsPage() {
         title,
         description,
         system_prompt: systemPrompt,
-        document_type: documentType || null,
+        document_type: interviewType === "profile" ? (documentType || null) : null,
+        interview_type: interviewType,
+        topic: interviewType === "content" ? (topic || null) : null,
         created_by: user.id,
       });
     }
@@ -203,38 +213,99 @@ export default function InterviewsPage() {
                   rows={2}
                 />
               </div>
+
+              {/* Interview type selectie */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">
-                  Document type
+                  Type interview
                 </label>
-                <p className="text-xs text-muted-foreground">
-                  Welk klantprofiel-document voedt dit interview? Na afronding wordt automatisch een document gegenereerd.
-                </p>
-                <Select value={documentType} onValueChange={(v) => setDocumentType(v === "none" ? "" : v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Geen (optioneel)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Geen</SelectItem>
-                    {Object.entries(DOCUMENT_TYPES).map(([key, config]) => (
-                      <SelectItem key={key} value={key}>
-                        {config.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setInterviewType("profile")}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${
+                      interviewType === "profile"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <p className="text-sm font-medium text-slate-900">Profiel-interview</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Voedt ICP, aanbod, positionering of tone of voice
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInterviewType("content")}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${
+                      interviewType === "content"
+                        ? "border-green-500 bg-green-50"
+                        : "border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <p className="text-sm font-medium text-slate-900">Content-interview</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Wekelijks interview voor content & inzichten
+                    </p>
+                  </button>
+                </div>
               </div>
+
+              {/* Profiel: document type */}
+              {interviewType === "profile" && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700">
+                    Document type
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Welk klantprofiel-document voedt dit interview? Na afronding wordt automatisch een document gegenereerd.
+                  </p>
+                  <Select value={documentType} onValueChange={(v) => setDocumentType(v === "none" ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Geen (optioneel)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Geen (scant alle profielen)</SelectItem>
+                      {Object.entries(DOCUMENT_TYPES).map(([key, config]) => (
+                        <SelectItem key={key} value={key}>
+                          {config.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Content: onderwerp */}
+              {interviewType === "content" && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700">
+                    Onderwerp / thema
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Welk onderwerp behandelt dit interview? De output wordt als content-document opgeslagen.
+                  </p>
+                  <Input
+                    placeholder="Bijv. Weekelijkse content check-in, Klantverhalen, Markttrends..."
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                  />
+                </div>
+              )}
+
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">
                   Systeem-prompt
                 </label>
                 <p className="text-xs text-muted-foreground">
-                  Dit zijn de instructies die Claude volgt tijdens het interview.
-                  Beschrijf welke vragen Claude moet stellen en hoe het gesprek
-                  moet verlopen.
+                  {interviewType === "content"
+                    ? "Instructies voor Claude. Beschrijf welke vragen gesteld moeten worden en wat de gewenste output is (bijv. blogpost, social media content, etc.)."
+                    : "Dit zijn de instructies die Claude volgt tijdens het interview. Beschrijf welke vragen Claude moet stellen en hoe het gesprek moet verlopen."}
                 </p>
                 <Textarea
-                  placeholder={`Bijv. Je bent een interviewer voor een senior developer positie. Stel vragen over:\n- Technische ervaring\n- Teamwork\n- Probleemoplossend vermogen\n\nStel één vraag per keer en wacht op het antwoord.`}
+                  placeholder={interviewType === "content"
+                    ? `Bijv. Je bent een content-interviewer. Stel vragen over:\n- Wat er deze week is gebeurd\n- Interessante klantgesprekken\n- Inzichten en learnings\n\nGenereer aan het einde een samenvatting met content-ideeën.`
+                    : `Bijv. Je bent een interviewer voor een senior developer positie. Stel vragen over:\n- Technische ervaring\n- Teamwork\n- Probleemoplossend vermogen\n\nStel één vraag per keer en wacht op het antwoord.`}
                   value={systemPrompt}
                   onChange={(e) => setSystemPrompt(e.target.value)}
                   rows={8}
@@ -280,13 +351,27 @@ export default function InterviewsPage() {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <CardTitle className="text-lg">{interview.title}</CardTitle>
-                  {interview.document_type && DOCUMENT_TYPES[interview.document_type as DocumentType] && (
-                    <Badge variant="outline" className={`text-xs ${DOCUMENT_TYPES[interview.document_type as DocumentType].color}`}>
-                      {DOCUMENT_TYPES[interview.document_type as DocumentType].title}
+                  <div className="flex items-center gap-1.5">
+                    <Badge className={`text-xs ${
+                      interview.interview_type === "content"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-blue-100 text-blue-700"
+                    }`}>
+                      {interview.interview_type === "content" ? "Content" : "Profiel"}
                     </Badge>
-                  )}
+                    {interview.document_type && DOCUMENT_TYPES[interview.document_type as DocumentType] && (
+                      <Badge variant="outline" className={`text-xs ${DOCUMENT_TYPES[interview.document_type as DocumentType].color}`}>
+                        {DOCUMENT_TYPES[interview.document_type as DocumentType].title}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-                <CardDescription>{interview.description}</CardDescription>
+                <CardDescription>
+                  {interview.description}
+                  {interview.topic && (
+                    <span className="block text-xs text-green-600 mt-1">Onderwerp: {interview.topic}</span>
+                  )}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">

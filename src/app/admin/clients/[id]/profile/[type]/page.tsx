@@ -15,6 +15,11 @@ const ReactMarkdown = dynamic(
   () => import("react-markdown"),
   { loading: () => <div className="py-8 text-center text-sm text-slate-400">Laden...</div> }
 );
+
+const SuggestionImpact = dynamic(
+  () => import("@/components/suggestion-impact").then((mod) => ({ default: mod.SuggestionImpact })),
+  { loading: () => <div className="py-4 text-center text-sm text-slate-400">Impact analyseren...</div> }
+);
 import {
   Card,
   CardContent,
@@ -179,6 +184,24 @@ export default function AdminDocumentDetailPage() {
         <Button
           size="sm"
           variant="outline"
+          className="gap-2"
+          onClick={() => {
+            if (!document) return;
+            const blob = new Blob([document.content], { type: "text/markdown" });
+            const url = URL.createObjectURL(blob);
+            const a = window.document.createElement("a");
+            a.href = url;
+            a.download = `${docType}-${clientId}-${new Date().toISOString().split("T")[0]}.md`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download .md
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
           onClick={restructureDocument}
           disabled={restructuring}
         >
@@ -214,7 +237,7 @@ export default function AdminDocumentDetailPage() {
         <DocumentViewer content={document.content} type={docType} />
       )}
 
-      {/* Suggesties */}
+      {/* Suggesties met impact-preview */}
       {pendingSuggestions.map((suggestion) => (
         <Card key={suggestion.id} className="border-amber-200 shadow-sm overflow-hidden">
           <div className="bg-amber-50 px-6 py-3 border-b border-amber-200">
@@ -230,12 +253,19 @@ export default function AdminDocumentDetailPage() {
             <p className="text-xs text-amber-700 mt-1">{suggestion.reason}</p>
           </div>
           <CardContent className="p-6">
+            {/* Impact overzicht */}
+            <div className="mb-4">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-3">Impact op document</p>
+              <SuggestionImpact
+                currentContent={document.content}
+                suggestedContent={suggestion.suggested_content}
+              />
+            </div>
+
             {showSuggestionFull === suggestion.id ? (
-              <div className="mb-4">
-                <article className="prose prose-slate prose-sm max-w-none prose-headings:text-slate-900 prose-p:text-slate-700 prose-strong:text-slate-900
-                  prose-th:bg-slate-50 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2
-                  prose-blockquote:border-l-4 prose-blockquote:border-slate-300 prose-blockquote:bg-slate-50 prose-blockquote:py-1 prose-blockquote:px-4 prose-blockquote:rounded-r-lg prose-blockquote:not-italic
-                ">
+              <div className="mb-4 mt-4 border-t pt-4">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-3">Volledig nieuw document</p>
+                <article className="prose prose-slate prose-sm max-w-none prose-headings:text-slate-900 prose-p:text-slate-700 prose-strong:text-slate-900">
                   <ReactMarkdown>{suggestion.suggested_content}</ReactMarkdown>
                 </article>
                 <Button size="sm" variant="ghost" className="mt-3 text-xs text-slate-400" onClick={() => setShowSuggestionFull(null)}>
@@ -243,14 +273,14 @@ export default function AdminDocumentDetailPage() {
                 </Button>
               </div>
             ) : (
-              <div className="mb-4">
-                <p className="text-sm text-slate-600 line-clamp-4">{suggestion.suggested_content.replace(/[#*_|>-]/g, "").substring(0, 300)}...</p>
-                <Button size="sm" variant="ghost" className="mt-2 text-xs text-blue-600" onClick={() => setShowSuggestionFull(suggestion.id)}>
-                  Volledig bekijken
+              <div className="mt-3">
+                <Button size="sm" variant="ghost" className="text-xs text-blue-600" onClick={() => setShowSuggestionFull(suggestion.id)}>
+                  Volledig nieuw document bekijken
                 </Button>
               </div>
             )}
-            <Separator className="mb-4" />
+
+            <Separator className="my-4" />
             <div className="flex gap-2">
               <Button size="sm" onClick={() => approveSuggestion(suggestion.id)} disabled={approving === suggestion.id} className="bg-green-600 hover:bg-green-700">
                 {approving === suggestion.id ? "Bezig..." : "Goedkeuren & Toepassen"}

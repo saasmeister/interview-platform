@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
 
     const interview = (assignment as any).interview;
     const specificDocType = interview.document_type as DocumentType | null;
+    const interviewType = interview.interview_type as string | null;
 
     // Haal alle berichten op
     const { data: messages } = await supabaseAdmin
@@ -65,7 +66,41 @@ export async function POST(request: NextRequest) {
       .map((msg) => `${msg.role === "user" ? "KLANT" : "INTERVIEWER"}: ${msg.content}`)
       .join("\n\n");
 
-    // Bepaal welke document types we moeten checken
+    // Content interviews: genereer output-document EN scan op profiel-inzichten
+    if (interviewType === "content") {
+      // Genereer de content output op basis van de systeem-prompt
+      const contentOutput = await generateContentOutput(
+        transcript,
+        interview.system_prompt,
+        interview.topic
+      );
+
+      // Sla de output op bij de assignment
+      if (contentOutput) {
+        await supabaseAdmin
+          .from("assignments")
+          .update({ output_content: contentOutput })
+          .eq("id", assignmentId);
+      }
+
+      // Scan ook op profiel-inzichten (slimme detectie)
+      const results = await scanTranscriptForAllDocuments(
+        transcript,
+        assignment.client_id,
+        assignment.assigned_by,
+        assignmentId,
+        interview.title
+      );
+
+      return NextResponse.json({
+        message: "Content gegenereerd en transcript gescand op profiel-inzichten",
+        generated: true,
+        contentGenerated: true,
+        profileTypes: results,
+      });
+    }
+
+    // Profiel interviews: bepaal welke document types we moeten checken
     if (specificDocType && DOCUMENT_TYPES[specificDocType]) {
       // Interview heeft een specifiek document type — genereer dat document
       await generateOrSuggestDocument(
@@ -83,8 +118,7 @@ export async function POST(request: NextRequest) {
         types: [specificDocType],
       });
     } else {
-      // Geen specifiek type (bijv. wekelijks interview)
-      // Scan het transcript op inzichten voor ALLE 4 documenten
+      // Geen specifiek type — scan het transcript op inzichten voor ALLE 4 documenten
       const results = await scanTranscriptForAllDocuments(
         transcript,
         assignment.client_id,
@@ -106,6 +140,38 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Genereer content output voor content-interviews
+async function generateContentOutput(
+  transcript: string,
+  systemPrompt: string,
+  topic: string | null
+): Promise<string | null> {
+  const response = await anthropic.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 8000,
+    thinking: {
+      type: "enabled",
+      budget_tokens: 8000,
+    },
+    system: `Je bent een expert content-specialist. Op basis van het interview-transcript hieronder, genereer de gewenste output zoals beschreven in de instructies. Schrijf in het Nederlands tenzij anders aangegeven.
+
+De output moet direct bruikbaar zijn als content-document (markdown format).${topic ? `\n\nOnderwerp/thema: ${topic}` : ""}`,
+    messages: [
+      {
+        role: "user",
+        content: `INSTRUCTIES VAN DE INTERVIEWER:\n${systemPrompt}\n\n---\n\nINTERVIEW TRANSCRIPT:\n\n${transcript}\n\n---\n\nGenereer nu de gewenste output op basis van het transcript en de instructies hierboven.`,
+      },
+    ],
+  });
+
+  for (const block of response.content) {
+    if (block.type === "text") {
+      return block.text;
+    }
+  }
+  return null;
 }
 
 // Genereer een document voor een specifiek type

@@ -11,9 +11,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import Link from "next/link";
 import type { Profile, Assignment, Interview, Message } from "@/lib/types";
 
@@ -42,6 +51,12 @@ export default function ClientDetailPage() {
   const [client, setClient] = useState<Profile | null>(null);
   const [assignments, setAssignments] = useState<AssignmentWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editError, setEditError] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -87,6 +102,69 @@ export default function ClientDetailPage() {
     }
 
     setLoading(false);
+  }
+
+  function openEditDialog() {
+    if (!client) return;
+    setEditName(client.full_name ?? "");
+    setEditEmail(client.email);
+    setEditError("");
+    setEditDialogOpen(true);
+  }
+
+  async function handleEdit() {
+    setEditSaving(true);
+    setEditError("");
+
+    try {
+      const response = await fetch(`/api/clients/${clientId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: editEmail.toLowerCase().trim(),
+          fullName: editName.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setEditError(data.error);
+        setEditSaving(false);
+        return;
+      }
+
+      setClient(data.profile);
+      setEditDialogOpen(false);
+    } catch {
+      setEditError("Er is een fout opgetreden");
+    }
+
+    setEditSaving(false);
+  }
+
+  async function handleDelete() {
+    if (!confirm("Weet je zeker dat je deze klant wilt verwijderen? Alle bijbehorende interviews, berichten en documenten worden ook verwijderd.")) return;
+
+    setDeleting(true);
+
+    try {
+      const response = await fetch(`/api/clients/${clientId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        alert(data.error ?? "Er is een fout opgetreden bij het verwijderen");
+        setDeleting(false);
+        return;
+      }
+
+      router.push("/admin/clients");
+    } catch {
+      alert("Er is een fout opgetreden bij het verwijderen");
+      setDeleting(false);
+    }
   }
 
   if (loading) {
@@ -165,24 +243,45 @@ export default function ClientDetailPage() {
                 })}
               </p>
             </div>
-            <div className="flex gap-6 text-center">
-              <div>
-                <p className="text-2xl font-bold text-slate-900">
-                  {assignments.length}
-                </p>
-                <p className="text-xs text-muted-foreground">Totaal</p>
+            <div className="flex items-center gap-6">
+              <div className="flex gap-6 text-center">
+                <div>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {assignments.length}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Totaal</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {inProgressCount}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Bezig</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-green-600">
+                    {completedCount}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Afgerond</p>
+                </div>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-blue-600">
-                  {inProgressCount}
-                </p>
-                <p className="text-xs text-muted-foreground">Bezig</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-green-600">
-                  {completedCount}
-                </p>
-                <p className="text-xs text-muted-foreground">Afgerond</p>
+              <Separator orientation="vertical" className="h-10" />
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openEditDialog}
+                >
+                  Bewerken
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? "Verwijderen..." : "Verwijderen"}
+                </Button>
               </div>
             </div>
           </div>
@@ -311,6 +410,55 @@ export default function ClientDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Bewerk dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle>Klant bewerken</DialogTitle>
+            <DialogDescription>
+              Pas de naam of het emailadres van deze klant aan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {editError && (
+              <div className="bg-red-50 text-red-700 text-sm p-3 rounded-md border border-red-200">
+                {editError}
+              </div>
+            )}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">
+                Volledige naam
+              </label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">
+                Emailadres
+              </label>
+              <Input
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Annuleren
+            </Button>
+            <Button
+              onClick={handleEdit}
+              disabled={!editName.trim() || !editEmail.trim() || editSaving}
+            >
+              {editSaving ? "Opslaan..." : "Opslaan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
