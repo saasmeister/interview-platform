@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useRef, useCallback } from "react";
+import { toast } from "sonner";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,7 +54,7 @@ function TypewriterText({ text, onComplete }: { text: string; onComplete?: () =>
 }
 
 // Thinking indicator met animated dots
-function ThinkingIndicator() {
+function ThinkingIndicator({ label }: { label: string }) {
   return (
     <div className="flex items-start gap-3 animate-fade-in">
       <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center flex-shrink-0 shadow-sm">
@@ -69,7 +70,7 @@ function ThinkingIndicator() {
             <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "200ms", animationDuration: "1.2s" }} />
             <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "400ms", animationDuration: "1.2s" }} />
           </div>
-          <span className="text-xs text-slate-400 ml-1">{t.interview.thinking}</span>
+          <span className="text-xs text-slate-400 ml-1">{label}</span>
         </div>
       </div>
     </div>
@@ -92,7 +93,7 @@ export default function InterviewPage() {
   const [progress, setProgress] = useState(0);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [completing, setCompleting] = useState(false);
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const supabase = createClient();
@@ -150,7 +151,7 @@ export default function InterviewPage() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assignmentId, autoStart: true }),
+        body: JSON.stringify({ assignmentId, isStart: true, lang }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Er is een fout opgetreden");
@@ -201,7 +202,7 @@ export default function InterviewPage() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assignmentId, message: userMessage }),
+        body: JSON.stringify({ assignmentId, message: userMessage, lang }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Er is een fout opgetreden");
@@ -224,7 +225,7 @@ export default function InterviewPage() {
         setMessages(updatedMessages);
       }
     } catch (error: any) {
-      alert(error.message);
+      toast.error(error.message);
       setMessages((prev) => prev.filter((m) => m.id !== "temp-user"));
       setInput(userMessage);
     }
@@ -390,9 +391,9 @@ export default function InterviewPage() {
     );
   }
 
-  // Actief interview: Claude-achtige chat
+  // Actief interview: Claude-achtige chat — break out of parent max-w container
   return (
-    <div className="flex flex-col h-[calc(100vh-5rem)]">
+    <div className="flex flex-col h-[calc(100vh-5rem)] -mx-4 sm:-mx-6 lg:-mx-8 -mb-8">
       {/* Header met progressiebalk */}
       <div className="border-b bg-white/80 backdrop-blur-sm">
         <div className="flex items-center justify-between px-4 py-3">
@@ -487,7 +488,7 @@ export default function InterviewPage() {
             </div>
           ))}
 
-          {sending && <ThinkingIndicator />}
+          {sending && <ThinkingIndicator label={t.interview.thinking} />}
 
           <div ref={messagesEndRef} />
         </div>

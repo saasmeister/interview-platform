@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -67,7 +68,7 @@ export function AssignDialog({
       .eq("client_id", clientId);
 
     if (existingList && existingList.length > 0) {
-      alert("Dit interview is al toegewezen aan deze klant.");
+      toast.warning("Dit interview is al toegewezen aan deze klant.");
       setAssigning(null);
       return;
     }

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState, useRef } from "react";
+import { toast } from "sonner";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,7 +88,7 @@ export default function AdminClientProfilePage() {
     }
 
     if (!content.trim()) {
-      alert("Voer content in of upload een bestand");
+      toast.error("Voer content in of upload een bestand");
       setSaving(false);
       return;
     }

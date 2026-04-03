@@ -13,7 +13,8 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const { assignmentId, message, isStart } = await request.json();
+    const { assignmentId, message, isStart, lang } = await request.json();
+    const userLang = lang === "en" ? "en" : "nl";
 
     if (!assignmentId) {
       return NextResponse.json(
@@ -79,35 +80,45 @@ export async function POST(request: NextRequest) {
 
     // Als het een start is, voeg een initieel user bericht toe
     if (isStart && conversationMessages.length === 0) {
+      const startMessage = userLang === "en"
+        ? "Hello, I'm ready to start the interview."
+        : "Hallo, ik ben klaar om te beginnen met het interview.";
+
       conversationMessages.push({
         role: "user",
-        content: "Hallo, ik ben klaar om te beginnen met het interview.",
+        content: startMessage,
       });
 
       await supabaseAdmin.from("messages").insert({
         assignment_id: assignmentId,
         role: "user",
-        content: "Hallo, ik ben klaar om te beginnen met het interview.",
+        content: startMessage,
       });
     }
 
-    // Systeem prompt met taaldetectie en voortgangsinstructies
+    // Systeem prompt met taal, formatting en voortgangsinstructies
+    const langInstruction = userLang === "en"
+      ? "You MUST respond in English at all times."
+      : "You MUST respond in Dutch (Nederlands) at all times.";
+
     const systemPrompt = `${interview.system_prompt}
 
-BELANGRIJKE INSTRUCTIES:
-1. Pas je taal aan aan de taal van de gebruiker. Als ze in het Nederlands antwoorden, stel je vragen in het Nederlands. Als ze in het Engels antwoorden, stel je vragen in het Engels.
-2. Voeg aan het EINDE van elk antwoord een voortgangstag toe in dit formaat: [PROGRESS:XX] waar XX een getal van 0 tot 100 is dat aangeeft hoeveel procent van het interview voltooid is.
-3. Als het interview compleet is, gebruik [PROGRESS:100] en geef een korte samenvatting.
-4. Stel één vraag tegelijk. Wacht op het antwoord voordat je de volgende vraag stelt.
-5. Wees vriendelijk, professioneel en to-the-point.`;
+IMPORTANT INSTRUCTIONS:
+1. ${langInstruction}
+2. Use ONLY plain text. No markdown formatting whatsoever: no **bold**, no *italic*, no bullet points (- or *), no headers (#), no code blocks. Just plain sentences and paragraphs.
+3. Do NOT use any emojis or emoticons.
+4. Add a progress tag at the END of every response in this format: [PROGRESS:XX] where XX is a number from 0 to 100 indicating interview completion percentage.
+5. When the interview is complete, use [PROGRESS:100] and give a brief summary.
+6. Ask one question at a time. Wait for the answer before asking the next question.
+7. Be friendly, professional, and to-the-point.`;
 
     // Vraag Claude om te reageren
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-opus-4-6",
       max_tokens: 16000,
       thinking: {
         type: "enabled",
-        budget_tokens: 10000,
+        budget_tokens: 32000,
       },
       system: systemPrompt,
       messages: conversationMessages,

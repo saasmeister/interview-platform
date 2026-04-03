@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Card,
   CardContent,
@@ -35,6 +37,7 @@ export default function ClientsPage() {
   const [inviteUrl, setInviteUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -85,22 +88,28 @@ export default function ClientsPage() {
     setSaving(false);
   }
 
-  async function handleDelete(id: string, e: React.MouseEvent) {
+  function confirmDelete(id: string, e: React.MouseEvent) {
     e.stopPropagation();
-    if (!confirm("Weet je zeker dat je deze klant wilt verwijderen? Alle bijbehorende data wordt ook verwijderd.")) return;
-
     setDeletingId(id);
+    setDeleteConfirmOpen(true);
+  }
+
+  async function handleDelete() {
+    if (!deletingId) return;
+
     try {
-      const response = await fetch(`/api/clients/${id}`, { method: "DELETE" });
+      const response = await fetch(`/api/clients/${deletingId}`, { method: "DELETE" });
       if (response.ok) {
+        toast.success("Klant verwijderd");
         loadClients();
       } else {
         const data = await response.json();
-        alert(data.error ?? "Er is een fout opgetreden");
+        toast.error(data.error ?? "Er is een fout opgetreden");
       }
     } catch {
-      alert("Er is een fout opgetreden bij het verwijderen");
+      toast.error("Er is een fout opgetreden bij het verwijderen");
     }
+    setDeleteConfirmOpen(false);
     setDeletingId(null);
   }
 
@@ -285,7 +294,7 @@ export default function ClientsPage() {
                         size="sm"
                         className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         disabled={deletingId === client.id}
-                        onClick={(e) => handleDelete(client.id, e)}
+                        onClick={(e) => confirmDelete(client.id, e)}
                       >
                         {deletingId === client.id ? "..." : "Verwijderen"}
                       </Button>
@@ -309,6 +318,16 @@ export default function ClientsPage() {
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Klant verwijderen"
+        description="Weet je zeker dat je deze klant wilt verwijderen? Alle bijbehorende data wordt ook verwijderd."
+        confirmLabel="Verwijderen"
+        variant="danger"
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

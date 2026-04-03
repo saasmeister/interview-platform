@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Card,
   CardContent,
@@ -43,7 +45,8 @@ export default function InterviewsPage() {
   const [saving, setSaving] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [assigningInterview, setAssigningInterview] = useState<Interview | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -77,7 +80,6 @@ export default function InterviewsPage() {
     setInterviewType("profile");
     setTopic("");
     setEditingInterview(null);
-    setError(null);
   }
 
   function openCreateDialog() {
@@ -98,13 +100,11 @@ export default function InterviewsPage() {
 
   async function handleSave() {
     setSaving(true);
-    setError(null);
-
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
-      setError("Je bent niet ingelogd. Log opnieuw in en probeer het nog eens.");
+      toast.error("Je bent niet ingelogd. Log opnieuw in en probeer het nog eens.");
       setSaving(false);
       return;
     }
@@ -130,24 +130,33 @@ export default function InterviewsPage() {
     setSaving(false);
 
     if (dbError) {
-      setError(`Kon interview niet opslaan: ${dbError.message}`);
+      toast.error(`Kon interview niet opslaan: ${dbError.message}`);
       return;
     }
 
+    toast.success(editingInterview ? "Interview bijgewerkt" : "Interview aangemaakt");
     setDialogOpen(false);
     resetForm();
     loadInterviews();
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Weet je zeker dat je dit interview wilt verwijderen?")) return;
+  function confirmDelete(id: string) {
+    setDeletingId(id);
+    setDeleteConfirmOpen(true);
+  }
 
-    const { error: dbError } = await supabase.from("interviews").delete().eq("id", id);
+  async function handleDelete() {
+    if (!deletingId) return;
+
+    const { error: dbError } = await supabase.from("interviews").delete().eq("id", deletingId);
+    setDeleteConfirmOpen(false);
+    setDeletingId(null);
+
     if (dbError) {
-      setError(`Kon interview niet verwijderen: ${dbError.message}`);
+      toast.error(`Kon interview niet verwijderen: ${dbError.message}`);
       return;
     }
-    setError(null);
+    toast.success("Interview verwijderd");
     loadInterviews();
   }
 
@@ -323,11 +332,6 @@ export default function InterviewsPage() {
                 />
               </div>
             </div>
-            {error && (
-              <div className="rounded-md bg-red-50 border border-red-200 p-3">
-                <p className="text-sm text-red-700">{error}</p>
-              </div>
-            )}
             <DialogFooter>
               <Button
                 variant="outline"
@@ -423,7 +427,7 @@ export default function InterviewsPage() {
                       variant="outline"
                       size="sm"
                       className="text-red-600 hover:text-red-700"
-                      onClick={() => handleDelete(interview.id)}
+                      onClick={() => confirmDelete(interview.id)}
                     >
                       Verwijderen
                     </Button>
@@ -440,6 +444,16 @@ export default function InterviewsPage() {
         open={assignDialogOpen}
         onOpenChange={setAssignDialogOpen}
         onAssigned={loadInterviews}
+      />
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Interview verwijderen"
+        description="Weet je zeker dat je dit interview wilt verwijderen? Dit kan niet ongedaan worden gemaakt."
+        confirmLabel="Verwijderen"
+        variant="danger"
+        onConfirm={handleDelete}
       />
     </div>
   );

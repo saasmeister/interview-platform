@@ -3,6 +3,8 @@
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Card,
   CardContent,
@@ -57,6 +59,7 @@ export default function ClientDetailPage() {
   const [editError, setEditError] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -144,8 +147,6 @@ export default function ClientDetailPage() {
   }
 
   async function handleDelete() {
-    if (!confirm("Weet je zeker dat je deze klant wilt verwijderen? Alle bijbehorende interviews, berichten en documenten worden ook verwijderd.")) return;
-
     setDeleting(true);
 
     try {
@@ -155,15 +156,18 @@ export default function ClientDetailPage() {
 
       if (!response.ok) {
         const data = await response.json();
-        alert(data.error ?? "Er is een fout opgetreden bij het verwijderen");
+        toast.error(data.error ?? "Er is een fout opgetreden bij het verwijderen");
         setDeleting(false);
+        setDeleteConfirmOpen(false);
         return;
       }
 
+      toast.success("Klant verwijderd");
       router.push("/admin/clients");
     } catch {
-      alert("Er is een fout opgetreden bij het verwijderen");
+      toast.error("Er is een fout opgetreden bij het verwijderen");
       setDeleting(false);
+      setDeleteConfirmOpen(false);
     }
   }
 
@@ -277,7 +281,7 @@ export default function ClientDetailPage() {
                   variant="outline"
                   size="sm"
                   className="text-red-600 hover:text-red-700"
-                  onClick={handleDelete}
+                  onClick={() => setDeleteConfirmOpen(true)}
                   disabled={deleting}
                 >
                   {deleting ? "Verwijderen..." : "Verwijderen"}
@@ -459,6 +463,17 @@ export default function ClientDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Klant verwijderen"
+        description="Weet je zeker dat je deze klant wilt verwijderen? Alle bijbehorende interviews, berichten en documenten worden ook verwijderd."
+        confirmLabel="Verwijderen"
+        variant="danger"
+        loading={deleting}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }
